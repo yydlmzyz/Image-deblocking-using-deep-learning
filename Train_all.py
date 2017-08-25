@@ -5,8 +5,8 @@ from keras.callbacks import EarlyStopping,ModelCheckpoint,ReduceLROnPlateau,CSVL
 from pathlib import Path
 
 #setting parameters
-img_width = 40
-img_height = 40
+img_width = 42
+img_height = 42
 img_channel = 3
 
 #setting path and file
@@ -49,7 +49,7 @@ deblocking_model.load_weights('str(save_dir/'weights_1.h5'))
 '''
 
 deblocking_model.fit(train_data,train_label,
-epochs=20,
+epochs=50,
 batch_size=128,
 shuffle=True,
 #validation_data=(test_data,test_label)#

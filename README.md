@@ -1,32 +1,40 @@
-# deblock
-使用CNN对压缩图像进行优化，包括去除块效应等
+# deblocking
+使用神经网络对压缩图像进行优化，包括去除块效应等
 
 
-参考论文：
+References：
 https://arxiv.org/abs/1609.04802v1
-https://www.computer.org/csdl/proceedings/iccv/2015/8391/00/8391a576-abs.html
-参考代码：
+http://de.arxiv.org/pdf/1504.06993
+https://arxiv.org/abs/1605.00366
+https://arxiv.org/pdf/1611.07233.pdf
+
 https://github.com/qobilidop/srcnn
 https://github.com/shreka116/SRResNet
 https://github.com/titu1994/Super-Resolution-using-Generative-Adversarial-Networks
 https://github.com/tonitick/AR-CNN
 
+DataSet:http://www.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/BSR/BSR_bsds500.tgz
 
-使用方法：
-第一步：Data.py
+1st step：DataProcess.py
 将作为Label和Data的image分别存放在两个文件夹中，顺序要对应
 通过Data.py生成h5格式的训练数据data.h5
 
-第二步：Train.py
-运行Train.py，会调用MyModel.py中定义的模型对data.h5进行训练，
-会生成weights的checkpoints文件、记录文件history.csv、最终输出训练好的模型Model.h5
 
-第三步：Predict.py&Show.py
-通过Predict.py，调用参数文件weights.h5,可以将图片集成批处理，输出优化后的图片集
-通过Show.py可以将一对Labe.jpg&Data.jpg进行处理，并比较结果，进行展示
+2nd step：Train_all.py/Train_batch.py 
+Train_all.py需要一次调入全部数据到内存中，Train_batch每次只调入1个batch的数据，当内存小于数据量时，只能用Train_batch.py
+根据需要可以使用ARCNN、L8、SRResNet_simple、SRResNet_complex中的model，SRResNet中的model没有测试过，还需要修改
+训练过程中会生成weights.h5
 
-其它：
-第一个模型结构及实验效果在文件夹MyModel_version1中，在MyModel_ARCNN中存放了一些其他模型作为比较补充
 
+3rd step：Show_result.py&Show_layers.py&Predict.py
+Show_result.py需要输入一对label-input，进行预测，并比较结果
+Show_layers.py 可以展示每一层每一个channel的输出
+Predict.py可以将图片集成批处理,课用于视频帧的预测
+
+
+Models：
+在文件夹ARCNN、L8、SRResNet_complex、SRResNet_simple中分别为不同模型的代码、结构图、权重文件和效果展示
+utilities：
+包含一些用Matlab压缩图片，从视频中截取图像等功能的代码
 
 
