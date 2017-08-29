@@ -6,30 +6,32 @@ import os
 
 '''
 this code can't compress images,
-you must cmmpress image ahead.And put compressed images in a folder and labels in another floder
+you must cmmpress image by matlab or other thing and put compressed images in a folder and labels in a floder
 '''
-DATA_PATH = '/home/lhj/wjq/deblock_keras/Data/'
-LABEL_PATH = '/home/lhj/wjq/deblock_keras/Label/'
-patch_size=40
-stride=10
+DATA_PATH = '/home/lhj/wjq/deblock_keras/Bubble/high/'
+LABEL_PATH = '/home/lhj/wjq/deblock_keras/Bubble/Label/'
+patch_size=42
+stride=16
 
 def prepare_data(path):
     names = os.listdir(path)
     names = sorted(names)#Attention
     nums = names.__len__()
 
-    data = []#list
-    for i in range(nums):#0 1 2
+    data = []
+    for i in range(nums):
         name=path + names[i]
-        img = Image.open(name)#jpg or png.Attention
-        img=numpy.asarray(img)#dtype = numpy.int
-        img=img[:,:,0:3]#for jpg [R,G,B],in case for png [R,G,B,A]
+        img = Image.open(name)
+        img =img.convert('YCbCr')  
+        img=numpy.asarray(img)
+       
         shape=img.shape
         print 'img.shape:',shape
         row_num = ((shape[0] - patch_size) / stride)+1
         col_num =((shape[1] - patch_size) / stride)+1
         row_shift = (shape[0] - ((row_num - 1) * stride + patch_size)) / 2
         col_shift = (shape[1] - ((col_num - 1) * stride + patch_size)) / 2
+        print 'row_num:',row_num,'col_num:',col_num
         
         for x in range(row_num):
             x_start = row_shift + (x) * stride
@@ -40,7 +42,8 @@ def prepare_data(path):
                 sub_img = img[x_start:x_end, y_start:y_end, :]
                 data.append(sub_img)
 
-    data = numpy.array(data)  #list has no shape          
+    data = numpy.array(data)  #list has no shape
+    print 'data.shape:',data.shape          
     return data
 
 def write_hdf5(data, label,output_filename):
@@ -58,5 +61,5 @@ def write_hdf5(data, label,output_filename):
 if __name__ == "__main__":
     data= prepare_data(DATA_PATH)
     label = prepare_data(LABEL_PATH)
-    write_hdf5(data, label, '/home/lhj/wjq/deblock_keras/DATA.h5')
+    write_hdf5(data, label, '/home/lhj/wjq/deblock_keras/TrainDataBubbleHigh.h5')
 
