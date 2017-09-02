@@ -29,7 +29,7 @@ def prepare(Datapath,Labelpath):
         namelabel=Labelpath+nameslabel[i]
         imgdata = Image.open(namedata)
         imglabel=Image.open(namelabel)
-        imgdata =imgdata.convert('YCbCr')
+        imgdata =imgdata.convert('YCbCr')#Attention!.this is not necessary,maybe RGB is better.
         imglabel=imglabel.convert('YCbCr')
         imgdata=numpy.asarray(imgdata,dtype = numpy.float32)
         imglabel=numpy.asarray(imglabel,dtype = numpy.float32)

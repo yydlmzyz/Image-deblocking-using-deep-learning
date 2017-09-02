@@ -31,10 +31,10 @@ def create_model(img_height,img_width,img_channel):
     L2 = Conv2D(64, (3, 3), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L1)
     L3 = Conv2D(64, (3, 3), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L2)
     L4 = Conv2D(64, (3, 3), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L3)
-    L4=concatenate([L4,L1],axis=-1)
+    L4=concatenate([L4,L1],axis=-1)#Attention!.maybe this connection will influence the result,which means it can be moved.
     L5 = Conv2D(64, (1, 1), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L4)
     L6 = Conv2D(64, (5, 5), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L5)
-    L6=concatenate([L6,L1],axis=-1)
+    L6=concatenate([L6,L1],axis=-1)#Attention!.maybe this connection will influence the result,which means it can be moved.
     L7 = Conv2D(128, (1, 1), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L6)
     L8 = Conv2D(img_channel, (5, 5), padding='same', activation='relu', kernel_initializer='glorot_uniform')(L7)
     deblocking =Model(inputs=ip,outputs= L8)

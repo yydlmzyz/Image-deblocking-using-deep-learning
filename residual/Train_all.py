@@ -28,10 +28,10 @@ print deblocking_model.summary()
 callbacks = []
 callbacks += [ModelCheckpoint(str(weights_dir/'{epoch:02d}-{val_loss:.6f}.h5'),save_weights_only=True,period=1)]
 callbacks += [CSVLogger(str(history_file), append=True)]#save history for visualization
-callbacks += [EarlyStopping(monitor='val_loss', patience=5)]
+callbacks += [EarlyStopping(monitor='val_loss', patience=10)]
 callbacks += [ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=6, epsilon=0.0001, cooldown=1, min_lr=0)]#reduce learing rate if necessary
 
-#1st step:load h5 data
+#load h5 data
 file = h5py.File(str(data_file),'r')
 
 train_data =file['data'][:].astype(numpy.float32)/255.0      
@@ -42,10 +42,7 @@ print train_label
 print 'train_data.shape:',train_data.shape,'train_label.shape:',train_label.shape ,'train_data.itemsize:',train_data.itemsize
 
 #3rd step:fit network
-
-
 deblocking_model.load_weights('/home/lhj/wjq/deblock_keras/weights1.h5')
-
 
 deblocking_model.fit(train_data,train_label,
 epochs=40,
