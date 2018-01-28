@@ -12,10 +12,10 @@ L8|22.8510|0.7674
 
 ### problem1:  
 &emsp;&emsp;虽然输出图像的块效应有改善，但是却产生了噪声，尤其是在白色区域，更多更明显:  
-RGB格式下：
-![image](https://github.com/yydlmzyz/Feature-losses-for-image-deblocking/blob/master/images/noise.jpg)  
-YCbCr格式下：
-![image](https://github.com/yydlmzyz/Feature-losses-for-image-deblocking/blob/master/images/noise.jpg)  
+RGB格式下：  
+![image](https://github.com/yydlmzyz/Image-deblocking-using-CNN/blob/master/images/output3_L8_rgb/344010.jpg)  
+YCbCr格式下：  
+![image](https://github.com/yydlmzyz/Image-deblocking-using-CNN/blob/master/images/output4_L8_YCbCr/344010.jpg)  
 &emsp;&emsp;怀疑是是数据处理上有问题。有待解决。  
   
 ### problem2:  
