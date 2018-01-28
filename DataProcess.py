@@ -1,17 +1,20 @@
 import h5py
 import numpy
 import math
-import Image
+from PIL import Image
 import os
 
 '''
 this code can't compress images,
 you must cmmpress image by matlab or other thing and put compressed images in a folder and labels in a floder
 '''
-DATA_PATH = '/home/lhj/wjq/deblock_keras/Bubble/high/'
-LABEL_PATH = '/home/lhj/wjq/deblock_keras/Bubble/Label/'
+
+root_dir=os.getcwd()
+DATA_PATH = os.path.join(root_dir,'TestImages','data')
+LABEL_PATH = os.path.join(root_dir,'TestImages','label')
 patch_size=42
 stride=16
+
 
 def prepare_data(path):
     names = os.listdir(path)
@@ -20,9 +23,10 @@ def prepare_data(path):
 
     data = []
     for i in range(nums):
-        name=path + names[i]
+        #name=path + names[i]
+        name=os.path.join(path,names[i])
         img = Image.open(name)
-        img =img.convert('YCbCr')  
+        #img =img.convert('YCbCr')#Attention use'RGB'not'YCbCr'
         img=numpy.asarray(img)
        
         shape=img.shape
@@ -61,5 +65,6 @@ def write_hdf5(data, label,output_filename):
 if __name__ == "__main__":
     data= prepare_data(DATA_PATH)
     label = prepare_data(LABEL_PATH)
-    write_hdf5(data, label, '/home/lhj/wjq/deblock_keras/TrainDataBubbleHigh.h5')
+    write_hdf5(data, label, os.path.join(root_dir,'TestData10.h5'))
+ 
 
