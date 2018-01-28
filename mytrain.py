@@ -44,7 +44,7 @@ def train():
     callbacks=callbacks)
 
     #save model
-    deblocking_model.save_weights('weights.h5')
+    #model.save_weights('weights.h5')
 
 
 # Training settings
