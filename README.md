@@ -10,7 +10,16 @@ DenseNet_shallow |20.6849(-4.8302)|0.7327(-0.014)
 ARCNN|22.5322|0.7618
 L8|22.8510|0.7674
 
-
+### problem1:  
+&emsp;&emsp;虽然输出图像的块效应有改善，但是却产生了噪声，尤其是在白色区域，更多更明显:  
+RGB格式下：
+![image](https://github.com/yydlmzyz/Feature-losses-for-image-deblocking/blob/master/images/noise.jpg)  
+YCbCr格式下：
+![image](https://github.com/yydlmzyz/Feature-losses-for-image-deblocking/blob/master/images/noise.jpg)  
+&emsp;&emsp;怀疑是是数据处理上有问题。有待解决。  
+  
+### problem2:  
+&emsp;&emsp;DenseNet有问题，训练慢，而且效果差，经过对比实验，增加网络深度没效果，增加channels的数量有效果。
 
 ### References：  
 
