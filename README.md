@@ -16,7 +16,7 @@ RGB格式下：
 ![image](https://github.com/yydlmzyz/Image-deblocking-using-CNN/blob/master/images/output3_L8_rgb/344010.jpg)  
 YCbCr格式下：  
 ![image](https://github.com/yydlmzyz/Image-deblocking-using-CNN/blob/master/images/output4_L8_YCbCr/344010.jpg)  
-&emsp;&emsp;怀疑是是数据处理上有问题。有待解决。  
+&emsp;&emsp;有待解决。  
   
 ### problem2:  
 &emsp;&emsp;DenseNet有问题，训练慢，而且效果差，准备放弃。经过对比实验，增加网络深度没效果，增加channels的数量有效果。  
