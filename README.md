@@ -19,10 +19,8 @@ YCbCr格式下：
 &emsp;&emsp;有待解决。  
   
 ### problem2:  
-&emsp;&emsp;DenseNet有问题，训练慢，而且效果差，准备放弃。经过对比实验，增加网络深度没效果，增加channels的数量有效果。  
+&emsp;&emsp;DenseNet有问题，训练慢，而且效果差。经过对比实验，增加网络深度没效果，增加channels的数量有效果。  
   
-### plan:  
-&emsp;&emsp;尝试其他网络模型和多尺度
 
 ### References：  
 
