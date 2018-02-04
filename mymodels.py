@@ -66,7 +66,7 @@ class ResNet:
         #relu_1 = Activation('relu')(norm_1)
         conv_2 = Conv2D(filters, (kernel_size, kernel_size), padding='same',kernel_initializer='glorot_uniform')(relu_1)
         norm_2 = BatchNormalization(axis=-1)(conv_2)
-
+        #relu_2 = LeakyReLU(alpha=0.25)(norm_2)#not sure maybe wrong
         return Add()([inputs, norm_2])
 
     def create_model(self):
