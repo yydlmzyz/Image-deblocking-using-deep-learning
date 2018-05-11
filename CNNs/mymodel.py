@@ -166,6 +166,37 @@ class edar(nn.Module):
         return out
 
 #########################################################################################################
+#change add to cat
+
+class edar2(nn.Module):
+    def __init__(self):
+        super(edar2, self).__init__()
+        self.head= nn.Conv2d(3,64,3,1,1)
+        self.body = nn.ModuleList([ResidualBlock(64) for i in range(8)])
+        self.tail=nn.Conv2d(64,64,3,1,1)
+        self.reconstruct=nn.Conv2d(128,3,3,1,1)
+        self.relu= nn.ReLU(inplace=True)
+
+        #weights initialization by normal(Gaussinn) distribution:normal_(mean=0, std=1 , gengerator=None*)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))  
+
+    def forward(self, x):
+        x = self.head(x)
+        residual=x#i'm afraid this may cause residual is x
+        for layer in self.body:
+            residual = layer(residual)
+        residual = self.relu(self.tail(residual))#
+        out  = torch.cat([x,residual],1)#global residual
+        #out=self.tail(out)
+        out  = self.reconstruct(out)
+        return out
+
+
+
+#########################################################################################################
 
 
 #model_6 refer to SRDenseNet:http://openaccess.thecvf.com/content_ICCV_2017/papers/Tong_Image_Super-Resolution_Using_ICCV_2017_paper.pdf
