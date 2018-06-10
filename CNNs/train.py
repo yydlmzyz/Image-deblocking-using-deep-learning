@@ -4,25 +4,32 @@ import numpy
 from pathlib import Path
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset,DataLoader
+from torch.utils.data import Dataset,DataLoader,ConcatDataset
 from torch.autograd import Variable
 
 import mymodel
 import myutils
 
+from logger import Logger
+
+logger=Logger('./logs/edar2')
+
 #prepare data
 class MyDataset(Dataset):
-    def __init__(self,data_file):
+    def __init__(self,data_file,n):
         self.file=h5py.File(str(data_file),'r')
-        self.inputs=self.file['data'][:].astype(numpy.float32)/255.0#simple normalization in[0,1]
-        self.label=self.file['label'][:].astype(numpy.float32)/255.0
+        #self.inputs=self.file['data'][:].astype(numpy.float32)/255.0#simple normalization in[0,1]
+        #self.label=self.file['label'][:].astype(numpy.float32)/255.0
+	self.n=n
 
     def __len__(self):
-        return self.inputs.shape[0]
+        #return self.inputs.shape[0]
+	return self.n
 
     def __getitem__(self,idx):
-        inputs=self.inputs[idx,:,:,:].transpose(2,0,1)
-        label=self.label[idx,:,:,:].transpose(2,0,1)
+        inputs=self.file['data'][idx,:,:,:].astype(numpy.float32).transpose(2,0,1)/255.0
+        label=self.file['label'][idx,:,:,:].astype(numpy.float32).transpose(2,0,1)/255.0
+	#label=self.label[idx,:,:,:].transpose(2,0,1)
         inputs=torch.Tensor(inputs)
         label=torch.Tensor(label)
         sample={'inputs':inputs,'label':label}
@@ -31,14 +38,14 @@ class MyDataset(Dataset):
 
 def checkpoint(epoch,loss,psnr,ssim,mse):
     model.eval()
-    model_path1 = str(checkpoint_dir/'{}-{:.6f}-{:.4f}-{:.4f}.pth'.format(epoch,loss,psnr,ssim))
+    model_path1 = str(checkpoint_dir/'qp37-{}-{:.6f}-{:.4f}-{:.4f}.pth'.format(epoch,loss,psnr,ssim))
     torch.save(model,model_path1)
 
     if use_gpu:
         model.cpu()#you should save weights on cpu not on gpu
 
     #save weights
-    model_path = str(checkpoint_dir/'{}-{:.6f}-{:.4f}-{:.4f}param.pth'.format(epoch,loss,psnr,ssim))
+    model_path = str(checkpoint_dir/'qp37-{}-{:.6f}-{:.4f}-{:.4f}param.pth'.format(epoch,loss,psnr,ssim))
 
     torch.save(model.state_dict(),model_path)   
 
@@ -48,7 +55,7 @@ def checkpoint(epoch,loss,psnr,ssim,mse):
     print("Checkpoint saved to {}".format(model_path))
 
     output = open(str(checkpoint_dir/'train_result.txt'),'a+')
-    output.write(('{} {:.4f} {:.4f} {:.4f}'.format(epoch,loss,psnr,ssim))+'\r\n')
+    output.write(('{} {:.6f} {:.4f} {:.4f}'.format(epoch,loss,psnr,ssim))+'\r\n')
     output.close()
 
     if use_gpu:
@@ -94,9 +101,13 @@ def train(epoch):
         #if iteration==101:
         #    break
 
+	info={'edar2_loss':loss.data[0]}
+	for tag,value in info.items():
+	    logger.scalar_summary(tag,value,iteration+epoch*len(dataloader))
+
         #caculate the average loss
         sum_loss += loss.data[0]
-
+    
     return sum_loss/len(dataloader)
 
 
@@ -127,6 +138,10 @@ def main():
         loss=train(epoch)
         psnr,ssim,mse = test()
         checkpoint(epoch,loss,psnr,ssim,mse)
+        info1={'edar2_avg_loss':loss,'edar2_psnr':psnr,'edar2_ssim':ssim,'edar2_mse':mse}
+        for tag,value in info1.items():
+            logger.scalar_summary(tag,value,epoch)
+
 
 
 
@@ -135,7 +150,7 @@ def main():
 parser = argparse.ArgumentParser(description='ARCNN')
 parser.add_argument('--batchsize', type=int, default=64, help='training batch size')
 parser.add_argument('--testbatchsize', type=int, default=16, help='testing batch size')
-parser.add_argument('--epochs', type=int, default=200, help='number of epochs to train for')
+parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0001, help='Learning Rate. Default=0.0001')
 args = parser.parse_args()
 
@@ -149,25 +164,28 @@ use_gpu=torch.cuda.is_available()
 
 #2.set path and file
 save_dir = Path('.')
-checkpoint_dir = Path('.') / 'Checkpoints_ARCNN'#save model parameters and train record
+checkpoint_dir = Path('.') / 'Checkpoints_edar2_L1'#save model parameters and train record
 if checkpoint_dir.exists():
     print 'folder esxited'
 else:
     checkpoint_dir.mkdir()
 
-model_weights_file=checkpoint_dir/'134-0.000398-34.0115-0.9435param.pth'
+model_weights_file=checkpoint_dir/'edar2_qp42-0-0.001520-28.6083-0.8426param.pth'
 
 
 #3.set dataset and dataloader
-dataset=MyDataset(data_file=save_dir/'TrainData32.h5')
-test_dataset=MyDataset(data_file=save_dir/'TestData32.h5')
+dataset=MyDataset(data_file=save_dir/'TrainData_37_nosao.h5',n=43848)#you need to obtain the number from dataprocess
+dataset2K=MyDataset(data_file=save_dir/'Data2K_37_nosao.h5',n=38478)
+test_dataset=MyDataset(data_file=save_dir/'ValData_37_nosao.h5',n=5320)
 
-dataloader=DataLoader(dataset,batch_size=args.batchsize,shuffle=True,num_workers=0)
+dataloader=DataLoader(ConcatDataset([dataset,dataset2K]),batch_size=args.batchsize,shuffle=True,num_workers=0)
+#dataloader=DataLoader(dataset,batch_size=args.batchsize,shuffle=True,num_workers=0)
 test_dataloader=DataLoader(test_dataset,batch_size=args.testbatchsize,shuffle=False,num_workers=0)
 
 
+
 #4.set model& criterion& optimizer
-model=mymodel.ARCNN()
+model=mymodel.edar2()
 
 criterion = nn.MSELoss()
 optimizer=torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -187,12 +205,12 @@ else:
 
 #show mdoel&parameters&dataset
 print('Model Structure:',model)
-print('# parameters:', sum(param.numel() for param in model.parameters()))
+print('parameters:', sum(param.numel() for param in model.parameters()))
 params = list(model.parameters())
 for i in range(len(params)):
     print('layer:',i+1,params[i].size())
 
-print('length of dataset:',len(dataset))
+#print('length of dataset:',len(dataset))
 
 
 if __name__=='__main__':

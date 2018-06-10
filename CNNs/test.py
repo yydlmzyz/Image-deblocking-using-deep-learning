@@ -6,14 +6,17 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.autograd import Variable
 import mymodel
+import MS_model
 import myutils
+import msssim
+import torch.nn as nn
 
 
 class ImageDataset(Dataset):
     def __init__(self, root_dir, transform=None):
 
-        self.input_dir = os.path.join(root_dir,'input1')
-        self.label_dir = os.path.join(root_dir,'label1')
+        self.input_dir = os.path.join(root_dir,'output_qp_42_no_sao','320x480')
+        self.label_dir = os.path.join(root_dir,'images_png','320x480')
         self.transform = transform
 
     def __len__(self):
@@ -77,11 +80,11 @@ def wrap_variable(input_batch, label_batch, use_gpu,flag):
 
 
 
-def checkpoint(name,psnr1,psnr2,ssim1,ssim2):
-    print('{},psnr:{:.4f}->{:.4f},ssim:{:.4f}->{:.4f}'.format(name,psnr1,psnr2,ssim1,ssim2))
+def checkpoint(name,psnr1,psnr2,ssim1,ssim2,msssim1,msssim2):
+    print('{},psnr:{:.4f}->{:.4f},ssim:{:.4f}->{:.4f},msssim:{:.4f}-{:.4f}'.format(name,psnr1,psnr2,ssim1,ssim2,msssim1,msssim2))
     #write to text
     output = open(os.path.join(Image_folder,'test_result.txt'),'a+')
-    output.write(('{} {:.4f} {:.4f} {:.4f} {:.4f}'.format(name,psnr1,psnr2,ssim1,ssim2))+'\r\n')
+    output.write(('{} {:.4f}->{:.4f} {:.4f}->{:.4f},{:.4f}->{:.4f}'.format(name,psnr1,psnr2,ssim1,ssim2,msssim1,msssim2))+'\r\n')
     output.close()
 
 def save(output_image,name):
@@ -94,7 +97,9 @@ def save(output_image,name):
     #img = Image.fromarray(img)
     #img.save(os.path.join(Image_folder,'output','{}.jpg'.format(name[:-4])))
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(os.path.join(Image_folder,'output','{}.jpg'.format(name[:-4])),img)
+    cv2.imwrite(os.path.join(Image_folder,'output','{}.png'.format(name[:-4])),img)
+
+downsampling=nn.AvgPool2d(2)
 
 
 def test():
@@ -102,18 +107,38 @@ def test():
     #input and label
     avg_psnr1 = 0
     avg_ssim1 = 0
+    avg_msssim1 = 0
     #output and label
     avg_psnr2 = 0
     avg_ssim2 = 0
+    avg_msssim2 = 0
 
     for i, sample in enumerate(dataloader):
         input_image,label_image,name=sample['input_image'],sample['label_image'],sample['name'][0]#tuple to str
  
+        
         #Wrap with torch Variable
         input_image,label_image=wrap_variable(input_image,label_image, use_gpu,True)
         #predict
         output_image = model(input_image)
         #clamp in[0,1]
+
+
+        '''
+	##################
+        #Wrap with torch Variable
+        input_image,label_image=wrap_variable(input_image,label_image, use_gpu,True)
+        inputs_1=downsampling(input_image)
+        label_1=downsampling(label_image)
+        inputs_2=downsampling(inputs_1)
+        label_2=downsampling(label_1)
+
+        output_image, outputs_1, outputs_2 = model(input_image,inputs_1,inputs_2)
+	#################
+        '''	
+
+
+
         output_image=output_image.clamp(0.0, 1.0)
 
 
@@ -125,13 +150,19 @@ def test():
         ssim1 = torch.sum((myutils.ssim(input_image, label_image, size_average=False)).data)/1.0#batch_size
         ssim2 = torch.sum((myutils.ssim(output_image, label_image, size_average=False)).data)/1.0
 
+	#msssim
+     	msssim1 = numpy.sum((msssim.MultiScaleSSIM(numpy.expand_dims(input_image.data[0].clone().cpu().numpy(),axis=0), numpy.expand_dims(label_image.data[0].clone().cpu().numpy(),axis=0), max_val=1.0)))/1.0#batch_size
+        msssim2 = numpy.sum((msssim.MultiScaleSSIM(numpy.expand_dims(output_image.data[0].clone().cpu().numpy(),axis=0), numpy.expand_dims(label_image.data[0].clone().cpu().numpy(),axis=0), max_val=1.0)))/1.0
+
         avg_ssim1 += ssim1
         avg_psnr1 += psnr1
         avg_ssim2 += ssim2
         avg_psnr2 += psnr2
+        avg_msssim1 += msssim1
+        avg_msssim2 += msssim2
 
         #save output and record
-        checkpoint(name,psnr1,psnr2,ssim1,ssim2)
+        checkpoint(name,psnr1,psnr2,ssim1,ssim2,msssim1,msssim2)
         save(output_image,name)
 
     #print and save
@@ -139,10 +170,12 @@ def test():
     avg_ssim1 = avg_ssim1/len(dataloader)
     avg_psnr2 = avg_psnr2/len(dataloader)
     avg_ssim2 = avg_ssim2/len(dataloader)
+    avg_msssim1 = avg_msssim1/len(dataloader)
+    avg_msssim2 = avg_msssim2/len(dataloader)
 
-    print('Avg. PSNR: {:.4f}->{:.4f} Avg. SSIM: {:.4f}->{:.4f}'.format(avg_psnr1,avg_psnr2,avg_ssim1,avg_ssim2))
+    print('Avg. PSNR: {:.4f}->{:.4f} Avg. SSIM: {:.4f}->{:.4f} Avg. MSSSIM: {:.4f}->{:.4f}'.format(avg_psnr1,avg_psnr2,avg_ssim1,avg_ssim2,avg_msssim1,avg_msssim2))
     output = open(os.path.join(Image_folder,'test_result.txt'),'a+')
-    output.write('Avg. PSNR: {:.4f}->{:.4f} Avg. SSIM: {:.4f}->{:.4f}'.format(avg_psnr1,avg_psnr2,avg_ssim1,avg_ssim2)+'\r\n')
+    output.write('Avg. PSNR: {:.4f}->{:.4f} Avg. SSIM: {:.4f}->{:.4f}Avg. MSSSIM: {:.4f}->{:.4f}'.format(avg_psnr1,avg_psnr2,avg_ssim1,avg_ssim2,avg_msssim1,avg_msssim2)+'\r\n')
     output.close()
 
 
@@ -152,18 +185,39 @@ use_gpu=torch.cuda.is_available()
 
 #set path
 root_dir=os.getcwd()
-Image_folder=os.path.join(root_dir,'TestImages')
-model_weights_file=os.path.join(root_dir,'Checkpoints_ARDenseNet','99-0.000361-34.3671-0.9464param.pth')
+Image_folder=os.path.join(root_dir)
 
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','MS_47-0.001301-28.9525-0.8454param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','ARCNN_sao-qp42-90-0.001434-28.4783-0.8401param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','L8_qp42-99-0.001374-28.6387-0.8429param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','vdar_qp42-51-0.001339-28.6784-0.8443param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','ARDenseNet_qp42-28-0.001368-28.6754-0.8436param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','edar2_qp42-63-0.001339-28.6824-0.8445param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','vgg-10-0.001407-1.416533-28.476954-0.835027param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','L1-14-0.024889-28.6602-0.8444param.pth')
+model_weights_file=os.path.join(root_dir,'parameters_nosao','qp42-122--0.807578-28.5970-0.8461-0.9645param.pth')
+
+#model_weights_file=os.path.join(root_dir,'parameters_nosao37','ARCNN_qp37-6-0.000795-31.0831-0.9016param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao37','VDAR_qp37-12-0.000741-31.3404-0.9050param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao37','EDAR2qp37-23-0.000742-31.3593-0.9053param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao37','L8qp37-45-0.000756-31.2899-0.9044param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao37','MSqp37-3-0.000722-31.5615-0.9060param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao37','BestDenseqp37-24-0.000747-31.3328-0.9049param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','msssimqp42-10--0.807487-28.5841-0.8471-0.9645param.pth')
+#model_weights_file=os.path.join(root_dir,'parameters_nosao','msssimqp42-30--0.807743-28.5685-0.8467-0.9645param.pth')
 
 #set model  
-model=mymodel.ARDenseNet()
+model=mymodel.edar2()
+#model=MS_model.IntraDeblocking()
+
+#model=torch.load(model_weights_file)
 #vgg=mymodel_new.Vgg16(requires_grad=False)
 if use_gpu:
     model = model.cuda()
     #vgg = vgg.cuda()
 
 model.load_state_dict(torch.load(model_weights_file))
+
 
 #set dataset and dataloader
 mydataset = ImageDataset(root_dir=Image_folder, transform=mytransform())

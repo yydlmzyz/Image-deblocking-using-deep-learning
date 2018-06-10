@@ -8,7 +8,7 @@ from torch.autograd import Variable
 
 
 
-#model_1 baseline
+#model_1
 class ARCNN(nn.Module):
 
     def __init__(self):
@@ -36,8 +36,8 @@ class ARCNN(nn.Module):
         x=F.relu(self.conv4(x))
         return x
 
-#########################################################################################################
-#model_2 
+
+#model_2
 class L8(nn.Module):
 
     def __init__(self):
@@ -78,11 +78,8 @@ class L8(nn.Module):
         x=F.relu(self.conv8(x))
         return x
 
-#############################################################################################
-#the following model refer to https://blog.csdn.net/abluemouse/article/details/78710553
 
-
-#model_3:refer to vdsr:https://arxiv.org/abs/1511.04587
+#model_3:refer to vdsr
 class Conv_ReLU_Block(nn.Module):
     def __init__(self):
         super(Conv_ReLU_Block, self).__init__()
@@ -105,8 +102,7 @@ class vdar(nn.Module):
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))
-
-                
+          
     def make_layer(self, block, num_of_layer):
         layers = []
         for _ in range(num_of_layer):
@@ -122,28 +118,30 @@ class vdar(nn.Module):
         return out
 
 
-#########################################################################################################
 
-#model_5 refer to edsr:https://arxiv.org/abs/1707.02921
 class ResidualBlock(nn.Module):
     def __init__(self, channels=64):
         super(ResidualBlock, self).__init__()
-        self.conv = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.relu = nn.ReLU(inplace=True)#attrntion:relu not prelu
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
-        residual = self.conv(x)
+        residual = self.conv1(x)
         residual = self.relu(residual)
-        residual = self.conv(residual)#the original model multipy a value 0.1 here,which is to be analyzed in the feature
+        residual = self.conv2(residual)#the original model multipy a value 0.1 here,which is to be analyzed in the feature
         out      = torch.add(x,residual)
 
         return out
 
+
+#model_4_1 refer to edsr
 class edar(nn.Module):
     def __init__(self):
         super(edar, self).__init__()
         self.head= nn.Conv2d(3,64,3,1,1)
-        self.body = nn.ModuleList([ResidualBlock(64) for i in range(8)])
+        #self.body = nn.ModuleList([ResidualBlock(64) for i in range(8)])
+        self.body = self.make_layer(ResidualBlock, 8)
         self.tail=nn.Conv2d(64,64,3,1,1)
         self.reconstruct=nn.Conv2d(64,3,3,1,1)
         self.relu= nn.ReLU(inplace=True)
@@ -153,6 +151,12 @@ class edar(nn.Module):
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))  
+    
+    def make_layer(self, block, num_of_layer):
+        layers = []
+        for _ in range(num_of_layer):
+            layers.append(block())
+        return nn.Sequential(*layers)
 
     def forward(self, x):
         x = self.head(x)
@@ -165,14 +169,14 @@ class edar(nn.Module):
         out  = self.reconstruct(out)
         return out
 
-#########################################################################################################
-#change add to cat
 
+#model_4_2 refer to edsr
 class edar2(nn.Module):
     def __init__(self):
         super(edar2, self).__init__()
         self.head= nn.Conv2d(3,64,3,1,1)
-        self.body = nn.ModuleList([ResidualBlock(64) for i in range(8)])
+        #self.body = nn.ModuleList([ResidualBlock(64) for i in range(8)])
+        self.body = self.make_layer(ResidualBlock, 8)
         self.tail=nn.Conv2d(64,64,3,1,1)
         self.reconstruct=nn.Conv2d(128,3,3,1,1)
         self.relu= nn.ReLU(inplace=True)
@@ -183,11 +187,16 @@ class edar2(nn.Module):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2. / n))  
 
+    def make_layer(self, block, num_of_layer):
+        layers = []
+        for _ in range(num_of_layer):
+            layers.append(block())
+        return nn.Sequential(*layers)
+
     def forward(self, x):
         x = self.head(x)
         residual=x#i'm afraid this may cause residual is x
-        for layer in self.body:
-            residual = layer(residual)
+        residual = self.body(residual)
         residual = self.relu(self.tail(residual))#
         out  = torch.cat([x,residual],1)#global residual
         #out=self.tail(out)
@@ -195,11 +204,7 @@ class edar2(nn.Module):
         return out
 
 
-
-#########################################################################################################
-
-
-#model_6 refer to SRDenseNet:http://openaccess.thecvf.com/content_ICCV_2017/papers/Tong_Image_Super-Resolution_Using_ICCV_2017_paper.pdf
+#model_5 refer to SRDenseNet
 class _Dense_Block(nn.Module):
     def __init__(self, channel_in):
         super(_Dense_Block, self).__init__()
@@ -252,12 +257,6 @@ class ARDenseNet(nn.Module):
         self.denseblock2 = self.make_layer(_Dense_Block, 256)
         self.denseblock3 = self.make_layer(_Dense_Block, 384)
         self.denseblock4 = self.make_layer(_Dense_Block, 512)
-        '''
-        self.denseblock5 = self.make_layer(_Dense_Block, 640)
-        self.denseblock6 = self.make_layer(_Dense_Block, 768)
-        self.denseblock7 = self.make_layer(_Dense_Block, 896)
-        self.denseblock8 = self.make_layer(_Dense_Block, 1024)
-        '''
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -285,19 +284,7 @@ class ARDenseNet(nn.Module):
         
         out = self.denseblock4(concat)
         concat = torch.cat([concat,out], 1)
-        '''
-        out = self.denseblock5(concat)
-        concat = torch.cat([concat,out], 1)
-        
-        out = self.denseblock6(concat)
-        concat = torch.cat([concat,out], 1)
-        
-        out = self.denseblock7(concat)
-        concat = torch.cat([concat,out], 1)
-        
-        out = self.denseblock8(concat)
-        out = torch.cat([concat,out], 1)
-        '''
+
         out = self.bottleneck(concat)
 
         out = self.reconstruction(out)
@@ -305,123 +292,49 @@ class ARDenseNet(nn.Module):
         return out
 
 
+class Vgg16(nn.Module):
+    def __init__(self, requires_grad=False):
+        super(Vgg16, self).__init__()
+        vgg_pretrained_features = models.vgg16(pretrained=True).features#It will dawnload the parameters,which will spend some time
+        self.slice1 = torch.nn.Sequential()
+        self.slice2 = torch.nn.Sequential()
+        self.slice3 = torch.nn.Sequential()
+        self.slice4 = torch.nn.Sequential()
+        for x in range(4):
+            self.slice1.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(4, 9):
+            self.slice2.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(9, 16):
+            self.slice3.add_module(str(x), vgg_pretrained_features[x])
+        for x in range(16, 23):
+            self.slice4.add_module(str(x), vgg_pretrained_features[x])
+        if not requires_grad:
+            for param in self.parameters():
+                param.requires_grad = False
 
-#########################################################################################################
-
-#model_7 refer to RDN:https://arxiv.org/abs/1802.08797
-class Residual_Dense_Block(nn.Module):
-    def __init__(self):
-        super(Residual_Dense_Block,self).__init__()
-
-        self.relu = nn.ReLU()
-        self.conv1 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=64+32, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=64+32*2, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv4 = nn.Conv2d(in_channels=64+32*3, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv5 = nn.Conv2d(in_channels=64+32*4, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv6 = nn.Conv2d(in_channels=64+32*5, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.fusion= nn.Conv2d(in_channels=64+32*6, out_channels=64, kernel_size=1, stride=1, padding=0)#local feature fusion
-
-    def forward(self, x):
-        conv1 = self.relu(self.conv1(x))
-
-        cout1_dense = torch.cat([conv1,x], 1)
-
-        conv2 = self.relu(self.conv2(cout1_dense))
-        cout2_dense = torch.cat([conv1,conv2,x], 1)
-
-        conv3 = self.relu(self.conv3(cout2_dense))
-        cout3_dense = torch.cat([conv1,conv2,conv3,x], 1)
-
-        conv4 = self.relu(self.conv4(cout3_dense))
-        cout4_dense = torch.cat([conv1,conv2,conv3,conv4,x], 1)
-
-        conv5 = self.relu(self.conv5(cout4_dense))
-        cout5_dense = torch.cat([conv1,conv2,conv3,conv4,conv5,x], 1)
-
-        conv6 = self.relu(self.conv6(cout5_dense))
-        cout6_dense = torch.cat([conv1,conv2,conv3,conv4,conv5,conv6,x], 1)
-
-        conv7 = self.fusion(cout6_dense)
-        out=torch.add(conv7,x)#local residual learning
+    def forward(self, X):
+        h = self.slice1(X)
+        h_relu1_2 = h
+        h = self.slice2(h)
+        h_relu2_2 = h
+        h = self.slice3(h)
+        h_relu3_3 = h
+        h = self.slice4(h)
+        h_relu4_3 = h
+        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3', 'relu4_3'])
+        out = vgg_outputs(h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3)
         return out
 
-
-
-
-class Residual_Dense_Network(nn.Module):
-    def __init__(self):
-        super(Residual_Dense_Network,self).__init__()
-        self.shallow_feature_extraction_1=nn.Conv2d(3,64,3,1,1)
-        self.shallow_feature_extraction_2=nn.Conv2d(64,64,3,1,1)
-
-        self.RDB=Residual_Dense_Block()
-
-        self.global_feature_fusion1=nn.Conv2d(64*8,64,3,1,1)#adaptively fuse a range of features with different levels
-        self.global_feature_fusion2=nn.Conv2d(64,64,3,1,1)# extract features for global residual learning
-
-        self.reconstruct=nn.Conv2d(64,3,3,1,1)
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-                if m.bias is not None:
-                    m.bias.data.zero_()
-
-    def forward(self,x):
-        #SFENET
-        shallow_feature_1=self.shallow_feature_extraction_1(x)#for global residual learning
-
-        shallow_feature_2=self.shallow_feature_extraction_2(shallow_feature_1)
-
-        #RDB 16
-        RDB_1=self.RDB(shallow_feature_2)
-        RDB_2=self.RDB(RDB_1)
-        RDB_3=self.RDB(RDB_2)
-        RDB_4=self.RDB(RDB_3)
-        RDB_5=self.RDB(RDB_4)
-        RDB_6=self.RDB(RDB_5)
-        RDB_7=self.RDB(RDB_6)
-        RDB_8=self.RDB(RDB_7)
-        '''
-        RDB_9=self.RDB(RDB_8)
-        RDB_10=self.RDB(RDB_9)
-        RDB_11=self.RDB(RDB_10)
-        RDB_12=self.RDB(RDB_11)
-        RDB_13=self.RDB(RDB_12)
-        RDB_14=self.RDB(RDB_13)
-        RDB_15=self.RDB(RDB_14)
-        RDB_16=self.RDB(RDB_15)
-        '''
-
-        #concat=torch.cat([RDB_1,RDB_2,RDB_3,RDB_4,RDB_5,RDB_6,RDB_7,RDB_8,RDB_9,RDB_10,RDB_11,RDB_12,RDB_13,RDB_14,RDB_15,RDB_16], 1)
-        concat=torch.cat([RDB_1,RDB_2,RDB_3,RDB_4,RDB_5,RDB_6,RDB_7,RDB_8], 1)
-
-        #DFF
-        global_feature1=self.global_feature_fusion1(concat)
-        global_feature2=self.global_feature_fusion2(global_feature1)
-
-        #global residual learning
-        out=torch.add(shallow_feature_1,global_feature2)
-        #reconstruct
-        out=self.reconstruct(out)
-
-        return out
 
 
 
 if __name__== '__main__':
-        #show mdoel&parameters&dataset
-    model=Residual_Dense_Network().cuda()
+    model=ARCNN().cuda()
     print('Model Structure:',model)
-    print('parameters:', sum(param.numel() for param in model.parameters()))
+    
     params = list(model.parameters())
     for i in range(len(params)):
         print('layer:',i+1,params[i].size())
-
-    x = Variable(torch.rand(8,3,4,4)).cuda()
-    y1,y2,y3 = model(x)
-    print y1,y2,y3
+    print('parameters:', sum(param.numel() for param in model.parameters()))
 
 
